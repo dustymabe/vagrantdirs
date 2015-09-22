@@ -98,20 +98,23 @@
         restart_policy: always
         command: -v=10 -logtostderr=true -domain=kubernetes.local -etcd-server="http://127.0.0.1:2379"
 
-    # install/configure/run skydns
-    - name: install skydns
-      shell: rpm -q skydns || dnf install -y skydns --enablerepo='updates-testing'
-    - name: make skydns not run as root
-      shell: sed /User=skydns/d /usr/lib/systemd/system/skydns.service > /etc/systemd/system/skydns.service && systemctl daemon-reload
-      args:
-        creates: /etc/systemd/system/skydns.service
-    - name: set config values in skydns
-      lineinfile: dest=/etc/skydns/skydns.conf regexp=^#?ETCD_MACHINES= line=ETCD_MACHINES="http://127.0.0.1:2379"
-    - lineinfile: dest=/etc/skydns/skydns.conf regexp=^#?SKYDNS_DOMAIN= line=SKYDNS_DOMAIN="kubernetes.local"
-    - lineinfile: dest=/etc/skydns/skydns.conf regexp=^#?SKYDNS_ADDR=   line=SKYDNS_ADDR="0.0.0.0:53"
-    - lineinfile: dest=/etc/skydns/skydns.conf regexp=^#?SKYDNS_NAMESERVERS=  line=SKYDNS_NAMESERVERS="8.8.8.8:53,8.8.4.4:53"
-    - name: ensure skydns is running (and enable it at boot)
-      service: name=skydns state=started enabled=yes
+    # Start skydns (container option)
+    - name: start skydns
+      docker:
+        name:  skydns
+        net:   host 
+        image: gcr.io/google_containers/skydns:2015-03-11-001
+        # Add docker_api_version while using ansible 1.9.2
+        # See https://github.com/ansible/ansible-modules-core/issues/1707
+        # See https://github.com/ansible/ansible-modules-core/issues/1794
+        docker_api_version: 1.18 # Not sure why this is needed
+        state: started
+        restart_policy: always
+        env:
+            ETCD_MACHINES:      "http://127.0.0.1:2379"
+            SKYDNS_DOMAIN:      "kubernetes.local"
+            SKYDNS_ADDR:        "0.0.0.0:53"
+            SKYDNS_NAMESERVERS: "8.8.8.8:53,8.8.4.4:53"
 
     # configure kubelet
     - name: configure kubelet for skydns
