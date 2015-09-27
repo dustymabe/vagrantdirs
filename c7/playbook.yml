@@ -1,0 +1,119 @@
+- hosts: c7
+  remote_user: vagrant # use root to log in to the machine
+  become_user: root
+  become: yes
+  vars:
+    cacher_host: 192.168.121.135
+
+  tasks:
+    # Add some environment settings
+    - name: write .bashrc
+      template: src=/home/dustymabe/.bashrc dest=/root/.bashrc
+    - name: write .vimrc
+      template: src=/home/dustymabe/.vimrc dest=/root/.vimrc
+    - name: write .gitconfig
+      template: src=/home/dustymabe/.gitconfig dest=/root/.gitconfig
+
+    - name: configure yum to look at proxy
+      lineinfile: dest=/etc/yum.conf regexp=^proxy line=proxy=http://{{ cacher_host }}:3128
+
+    - name: configure centos yum repos to use baseurl
+      lineinfile: dest=/etc/yum.repos.d/CentOS-Base.repo regexp='^#?baseurl=(.*)/os/' line='baseurl=http://centos.mirrors.tds.net/pub/linux/centos/7.1.1503/os/x86_64/'
+    - name: delete mirrorlist
+      lineinfile: dest=/etc/yum.repos.d/CentOS-Base.repo regexp='^mirrorlist=(.*)repo=os' state=absent
+    - name: configure centos updates yum repos to use baseurl
+      lineinfile: dest=/etc/yum.repos.d/CentOS-Base.repo regexp='^#?baseurl=(.*)/updates/' line='baseurl=http://centos.mirrors.tds.net/pub/linux/centos/7.1.1503/updates/x86_64/'
+    - name: delete mirrorlist
+      lineinfile: dest=/etc/yum.repos.d/CentOS-Base.repo regexp='^mirrorlist=(.*)repo=updates' state=absent
+      
+##  # Hack to get docker 1.8
+##  - name: install policycoreutils-python
+##    yum: name=policycoreutils-python state=latest
+##  - name: install 1.8
+##    shell: rpm -q docker || rpm -ivh http://cbs.centos.org/kojifiles/packages/docker/1.8.1/4.git32b8b25.el7/x86_64/docker-1.8.1-4.git32b8b25.el7.x86_64.rpm http://cbs.centos.org/kojifiles/packages/docker/1.8.1/4.git32b8b25.el7/x86_64/docker-selinux-1.8.1-4.git32b8b25.el7.x86_64.rpm
+
+    # Install packages
+    - name: install yum-utils
+      yum: name=yum-utils state=latest
+    - name: update all packages
+      yum: name=* state=latest
+    - name: install epel-release
+      yum: name=epel-release state=latest
+    - name: install other packages
+      yum: name=git,vim,atomic,docker,bash-completion state=latest
+    - name: install kubernetes stuff
+      yum: name=etcd,kubernetes state=latest
+
+    # Configure and start docker
+    - name: Add docker storage configuration
+      lineinfile: dest=/etc/sysconfig/docker-storage-setup regexp=^DEVS= line=DEVS=/dev/vdb
+    - name: Add more docker storage configuration
+      lineinfile: dest=/etc/sysconfig/docker-storage-setup regexp=^VG= line=VG=vgdocker
+    - name: Configure docker to use local registry
+      lineinfile: dest=/etc/sysconfig/docker regexp=^OPTIONS= line=OPTIONS='--selinux-enabled --registry-mirror=http://{{ cacher_host }}:5000'
+    - name: ensure docker is running (and enable it at boot)
+      service: name=docker state=started enabled=yes
+
+    # Add kubernetes configuration
+    - name: kubernetes- set apiserver to listen on 0.0.0.0
+      lineinfile: dest=/etc/kubernetes/apiserver regexp=^KUBE_API_ADDRESS= line=KUBE_API_ADDRESS="--address=0.0.0.0"
+    - name: kubernetes- generate key to use
+      shell: mkdir -p /etc/pki/kube-apiserver && /bin/openssl genrsa -out /etc/pki/kube-apiserver/serviceaccount.key 2048
+      args:
+        creates: /etc/pki/kube-apiserver/serviceaccount.key # Makes it so script won't run twice
+    - name: kubernetes- set api server to use the key
+      lineinfile: dest=/etc/kubernetes/apiserver regexp=^KUBE_API_ARGS= line=KUBE_API_ARGS="--service_account_key_file=/etc/pki/kube-apiserver/serviceaccount.key"
+    - name: kubernetes- set controller manager to use the key
+      lineinfile: dest=/etc/kubernetes/controller-manager regexp=^KUBE_CONTROLLER_MANAGER_ARGS= line=KUBE_CONTROLLER_MANAGER_ARGS="--service_account_private_key_file=/etc/pki/kube-apiserver/serviceaccount.key"
+
+    # Start kubernetes services
+    - name: start kubernetes services
+      service: name={{item}} state=started enabled=yes
+      with_items:
+        - etcd
+        - kube-apiserver
+        - kube-controller-manager
+        - kubelet
+        - kube-proxy
+        - kube-scheduler
+
+    # Start kube2sky glue
+    - name: start kube2sky
+      docker:
+        name:  kube2sky
+        net:   host 
+        image: gcr.io/google_containers/kube2sky:1.11
+        # Add docker_api_version while using ansible 1.9.2
+        # See https://github.com/ansible/ansible-modules-core/issues/1707
+        # See https://github.com/ansible/ansible-modules-core/issues/1794
+        docker_api_version: 1.18 # Not sure why this is needed
+        state: started
+        restart_policy: always
+        command: -v=10 -logtostderr=true -domain=kubernetes.local -etcd-server="http://127.0.0.1:2379"
+
+    # Start skydns (container option)
+    - name: start skydns
+      docker:
+        name:  skydns
+        net:   host 
+        image: gcr.io/google_containers/skydns:2015-03-11-001
+        # Add docker_api_version while using ansible 1.9.2
+        # See https://github.com/ansible/ansible-modules-core/issues/1707
+        # See https://github.com/ansible/ansible-modules-core/issues/1794
+        docker_api_version: 1.18 # Not sure why this is needed
+        state: started
+        restart_policy: always
+        env:
+            ETCD_MACHINES:      "http://127.0.0.1:2379"
+            SKYDNS_DOMAIN:      "kubernetes.local"
+            SKYDNS_ADDR:        "0.0.0.0:53"
+            SKYDNS_NAMESERVERS: "8.8.8.8:53,8.8.4.4:53"
+
+    # configure kubelet
+    - name: configure kubelet for skydns
+      lineinfile: dest=/etc/kubernetes/kubelet regexp=^#?KUBELET_ARGS= line=KUBELET_ARGS="--cluster_dns={{ ansible_eth0.ipv4.address }} --cluster_domain=kubernetes.local"
+      notify: restart kubelet
+
+  handlers:
+    - name: restart kubelet
+      service: name=kubelet state=restarted

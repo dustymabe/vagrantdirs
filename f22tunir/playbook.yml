@@ -1,0 +1,73 @@
+- hosts: f22tunir
+  remote_user: root # use root to log in to the machine
+  vars:
+    image: 'https://kojipkgs.fedoraproject.org//work/tasks/8052/11108052/Fedora-Cloud-Base-23-20150916.x86_64.qcow2'
+    isatomic: '' #'--atomic'
+  tasks:
+    
+    # Work around vagrant bug: https://github.com/mitchellh/vagrant/issues/6202
+    - name: work around vagrant bug
+      lineinfile: dest=/etc/hosts regexp='^127.0.0.1' line='127.0.0.1   f22 localhost localhost.localdomain localhost4 localhost4.localdomain4'
+
+    # Work around F22 bug: https://fedorahosted.org/cloud/ticket/109
+    - name: work around f22 bug 1
+      shell: growpart --dry-run /dev/vda 1
+      ignore_errors: True
+      register: result
+    - name: work around f22  bug 2
+      shell: growpart /dev/vda 1
+      when: result|success
+    - name: work around f22 bug 3
+      shell: resize2fs /dev/vda1
+      when: result|success
+
+    # Install packages
+    - name: install yum-utils
+      dnf: name=yum-utils state=latest
+    - name: install tunir # Pulls in libvirt
+      dnf: name=tunir state=latest
+    - name: install other packages
+      dnf: name=vim,bash-completion,unzip state=latest
+    
+    # Start libvirtd
+    - name: ensure libvirtd is running (and enable it at boot)
+      service: name=libvirtd state=started enabled=yes
+
+    # Start redis
+    - name: ensure redis is running (and enable it at boot)
+      service: name=redis state=started enabled=yes
+
+    # Create the ports:
+    - name: create "ports" in redis for tunir
+      shell: python /usr/share/tunir/createports.py
+
+    # Create directories
+    - name: Creates /var/lib/tunirtests-master/
+      file: path=/var/lib/tunirtests-master/ state=directory
+    - name: Creates /var/lib/tunirtests-master/
+      file: path=/var/lib/tunirimages/ state=directory
+
+    # Figure out the basename of the image and grab it from url
+    - name: figure out base name of image
+      shell: basename {{ image }}
+      register: varbasename
+    - name: grab the image 
+      get_url: url={{ image }} dest=/var/lib/tunirimages/{{ varbasename.stdout }}
+
+    # Copy tests into image and update to point at target image
+    - name: copy fedora.json into image
+      get_url: url=https://raw.githubusercontent.com/kushaldas/tunirtests/master/fedora.json dest=/var/lib/tunirtests-master/fedora.json
+    - name: copy fedora.txt into image
+      get_url: url=https://raw.githubusercontent.com/kushaldas/tunirtests/master/fedora.txt dest=/var/lib/tunirtests-master/fedora.txt
+    - name: update target image
+      lineinfile: dest=/var/lib/tunirtests-master/fedora.json regexp="^  \"image\"\:" line='  "image":"file:///var/lib/tunirimages/{{ varbasename.stdout }}",' #'
+
+    - name: Don't have tunir give progress of download
+      lineinfile: dest=/usr/lib/python2.7/site-packages/tunirlib/config.py regexp="^DOWNLOAD_PROGRESS" line="DOWNLOAD_PROGRESS = False"
+
+    # Run tests 
+    - name: Run tests
+      shell: tunir --job /var/lib/tunirtests-master/fedora --stateless
+#     shell: tunir --job /var/lib/tunirtests-master/fedora --stateless {{ isatomic }} # Will work soon: --image-dir /var/lib/tunirimages
+      register: tests_output
+    - debug: var=tests_output.stdout_lines

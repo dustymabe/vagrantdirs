@@ -1,0 +1,32 @@
+Vagrant.configure(2) do |config|
+
+#config.ssh.username = 'root'
+#config.ssh.password = 'vagrant'
+    config.ssh.insert_key = 'true'
+    config.ssh.forward_agent = 'true'
+
+    # Centos does not support 9P filesharing
+    config.vm.synced_folder "/guests/sharedfolder", "/sharedfolder", type: "rsync"
+    config.vm.provider :libvirt do |domain|
+      domain.memory = 3000
+      domain.cpus = 2
+      # Add an extra disk
+      domain.storage :file, :size => '20G'
+     #domain.nested = true
+     #domain.volume_cache = 'none'
+    end
+
+    host = 'c7'
+    box  = 'centos/7'
+
+    config.vm.define host do | tmp |
+        tmp.vm.box = box
+        tmp.vm.hostname = host
+
+        # http://docs.vagrantup.com/v2/provisioning/ansible.html
+        tmp.vm.provision "ansible" do |ansible|
+            ansible.verbose = 'v'
+            ansible.playbook = "playbook.yml"
+        end
+    end
+end

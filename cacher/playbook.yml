@@ -1,0 +1,108 @@
+- hosts: cacher
+  remote_user: vagrant # use root to log in to the machine
+  become_user: root
+  become: yes
+
+  tasks:
+    - name: install yum-utils
+      yum: name=yum-utils state=latest
+
+    - name: install epel-release
+      yum: name=epel-release state=latest
+
+    - name: install docker and docker-python
+      yum: name=docker,docker-python state=latest
+
+    # Configure and start docker
+    - name: Add docker storage configuration
+      lineinfile: dest=/etc/sysconfig/docker-storage-setup regexp=^DEVS= line=DEVS=/dev/vdb
+    - name: Add more docker storage configuration
+      lineinfile: dest=/etc/sysconfig/docker-storage-setup regexp=^VG= line=VG=vgdocker
+    - name: ensure docker is running (and enable it at boot)
+      service: name=docker state=started enabled=yes
+
+    - name: create data container for squid proxy
+      docker:
+        name:  squiddata
+        net:   host 
+        image: busybox
+        docker_api_version: 1.18 # Not sure why this is needed
+        state: present
+        volumes:
+        - /var/cache/squid3
+    - name: start squid proxy
+      docker:
+        name:  squid
+        net:   host 
+        image: jpetazzo/squid-in-a-can
+        # Add docker_api_version while using ansible 1.9.2
+        # See https://github.com/ansible/ansible-modules-core/issues/1707
+        # See https://github.com/ansible/ansible-modules-core/issues/1794
+        docker_api_version: 1.18 # Not sure why this is needed
+        state: restarted
+        privileged: yes
+        volumes_from:
+        - squiddata
+        env:
+            MAX_CACHE_OBJECT=1024
+            DISK_CACHE_SIZE=10000
+
+    # https://docs.docker.com/v1.6/articles/registry_mirror/
+    - name: create data container for docker registry mirror
+      docker:
+        name:  registrydata
+        net:   host 
+        image: busybox
+        docker_api_version: 1.18 # Not sure why this is needed
+        state: present
+        volumes:
+        - /tmp/registry
+    - name: start docker registry mirror
+      docker:
+        name:  registry
+        net:   host 
+        image: registry:0.9.1
+        # Add docker_api_version while using ansible 1.9.2
+        # See https://github.com/ansible/ansible-modules-core/issues/1707
+        # See https://github.com/ansible/ansible-modules-core/issues/1794
+        docker_api_version: 1.18 # Not sure why this is needed
+        state: started
+        volumes_from:
+        - registrydata
+        #privileged: yes
+        env:
+            STANDALONE: false
+            MIRROR_SOURCE: https://registry-1.docker.io
+            MIRROR_SOURCE_INDEX: https://index.docker.io
+   #sudo docker run -p 5000:5000 \
+   #    -e STANDALONE=false \
+   #    -e MIRROR_SOURCE=https://registry-1.docker.io \
+   #    -e MIRROR_SOURCE_INDEX=https://index.docker.io \
+   #    registry
+
+##  # https://docs.docker.com/v1.6/articles/registry_mirror/
+##  - name: start docker registry mirror
+##    docker:
+##      name:  registry
+##      net:   host 
+##      image: registry:2.1.1
+##      # Add docker_api_version while using ansible 1.9.2
+##      # See https://github.com/ansible/ansible-modules-core/issues/1707
+##      # See https://github.com/ansible/ansible-modules-core/issues/1794
+##      docker_api_version: 1.18 # Not sure why this is needed
+##      state: started
+##      #privileged: yes
+##      env:
+## #        STANDALONE=false
+##          REGISTRY_PROXY_REMOTEURL: https://registry-1.docker.io
+##          REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY: /var/lib/registry
+##          REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY: /var/lib/registry
+##          REGISTRY_STORAGE_REDIRECT_DISABLE: true
+##          REGISTRY_STORAGE_CACHE_BLOBDESCRIPTOR:  inmemory 
+## #        MIRROR_SOURCE=https://registry-1.docker.io
+## #        MIRROR_SOURCE_INDEX=https://index.docker.io
+## #sudo docker run -p 5000:5000 \
+## #    -e STANDALONE=false \
+## #    -e MIRROR_SOURCE=https://registry-1.docker.io \
+## #    -e MIRROR_SOURCE_INDEX=https://index.docker.io \
+## #    registry
