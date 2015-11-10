@@ -1,11 +1,12 @@
 Vagrant.configure(2) do |config|
 
-    config.ssh.username = 'root'
+#   config.ssh.username = 'root'
 #config.ssh.password = 'vagrant'
     config.ssh.insert_key = 'true'
     config.ssh.forward_agent = 'true'
 
-#   config.vm.synced_folder "/guests/sharedfolder", "/sharedfolder", type: "9p"
+    # https://libvirt.org/formatdomain.html#elementsFilesystems
+    config.vm.synced_folder "/guests/sharedfolder", "/sharedfolder", type: "9p", :accessmode => "mapped"
     config.vm.provider :libvirt do |domain|
       domain.memory = 4096
       domain.cpus = 4
@@ -16,17 +17,21 @@ Vagrant.configure(2) do |config|
      #domain.volume_cache = 'none'
     end
 
-    host = 'f23alpha'
-    box  = 'F23-Beta-20150915'
+    host = 'f23'
+    box  = 'dustymabe/23-cloud-base'
+
+    # Workaround python3 vagrant issue
+#config.vm.provision "shell", inline: "dnf install -y python libselinux-python python-dnf python-docker-py"
 
     config.vm.define host do | tmp |
-        tmp.vm.box = box
         tmp.vm.hostname = host
+        tmp.vm.box = box
 
-##      # http://docs.vagrantup.com/v2/provisioning/ansible.html
-##      tmp.vm.provision "ansible" do |ansible|
-##          ansible.verbose = 'v'
-##          ansible.playbook = "playbook.yml"
-##      end
+        # http://docs.vagrantup.com/v2/provisioning/ansible.html
+        tmp.vm.provision "ansible" do |ansible|
+            ansible.verbose = 'v'
+            ansible.playbook = "playbook.yml"
+        end
     end
+
 end
