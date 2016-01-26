@@ -10,10 +10,6 @@
     - name: install python and deps for ansible modules
       raw: rpm -q python2 python2-dnf libselinux-python || dnf install -y python2 python2-dnf libselinux-python
 
-    # Install older version of docker
-    - name: install older version of docker
-      raw:  dnf install -y --disablerepo=updates https://kojipkgs.fedoraproject.org//packages/docker/1.8.2/7.gitcb216be.fc23/x86_64/docker-1.8.2-7.gitcb216be.fc23.x86_64.rpm https://kojipkgs.fedoraproject.org//packages/docker/1.8.2/7.gitcb216be.fc23/x86_64/docker-selinux-1.8.2-7.gitcb216be.fc23.x86_64.rpm
-
     # Now that python2 is installed gather facts for later use
     - name: gather facts 
       setup: 
@@ -43,13 +39,15 @@
     # Install packages
     - name: install yum-utils
       dnf: name=yum-utils state=installed
-  ##- name: update all packages
-  ##  dnf: name=* state=latest
+    - name: update all packages
+      dnf: name=* state=latest
+      run_once: true
+
+
     - name: install other packages
-      #dnf: name=openssl,git,vim,docker,python-docker-py,atomic,bash-completion state=latest
-      dnf: name=openssl,git,vim,python-docker-py,atomic,bash-completion state=latest
+      dnf: name=openssl,git,vim,docker,python-docker-py,atomic,bash-completion state=latest
     - name: install kubernetes stuff
-      dnf: name=etcd,kubernetes state=latest
+      dnf: name=etcd,kubernetes state=latest enablerepo=updates-testing
 
     # Configure and start docker
     - name: Add docker storage configuration
