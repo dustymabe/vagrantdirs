@@ -1,0 +1,32 @@
+Vagrant.configure(2) do |config|
+
+    config.ssh.insert_key = 'true'
+    config.ssh.forward_agent = 'true'
+
+    config.sshfs.mount_on_guest = true
+    config.sshfs.paths= { "/guests/sharedfolder/" => "/sharedfolder/" }
+    config.sshfs.host_addr = '192.168.121.1'
+    config.sshfs.host_addr = '127.0.0.1'
+    config.sshfs.host_port = '10022'
+    config.sshfs.password_prompt = false
+    
+
+    config.vm.provider :libvirt do |domain|
+      domain.memory = 4096
+      domain.cpus = 4
+      domain.nested = true
+      # Add an extra disk
+      domain.storage :file, :size => '20G'
+     #domain.nested = true
+     #domain.volume_cache = 'none'
+    end
+
+    host = 'c7'
+    box  = 'centos/7'
+
+    config.vm.define host do | tmp |
+        tmp.vm.box = box
+        tmp.vm.hostname = host
+
+    end
+end
