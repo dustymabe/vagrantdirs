@@ -23,15 +23,33 @@ Vagrant.configure(2) do |config|
 
   config.vm.provider "libvirt" do |v, override|
     v.driver = "kvm"
-    v.memory = 1024
+    v.memory = 2048
     v.cpus   = 2
   end
 
   config.vm.network "private_network", ip: "#{PUBLIC_ADDRESS}"
 
   config.vm.provision "shell", inline: <<-SHELL
-    sudo systemctl enable openshift
     sudo systemctl start openshift
+  SHELL
+
+  config.vm.provision "shell", privileged: false, inline: <<-SHELL
+    echo "You can now access OpenShift console on: https://#{PUBLIC_ADDRESS}:8443/console"
+    echo
+    echo "Configured basic user: openshift-dev, Password: devel"
+    echo
+    echo "Configured cluster admin user: admin, Password: admin"
+    echo
+    echo "To use OpenShift CLI, run:"
+    echo "$ vagrant ssh"
+    echo "$ oc login"
+    echo
+    echo "To browse the OpenShift API documentation, follow this link:"
+    echo "http://openshift3swagger-claytondev.rhcloud.com"
+    echo
+    echo "Then enter this URL:"
+    echo https://#{PUBLIC_ADDRESS}:8443/swaggerapi/oapi/v1
+    echo "."
   SHELL
 
 end

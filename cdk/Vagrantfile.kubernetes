@@ -3,11 +3,11 @@
 
 # Vagrantfile for single node k8s setup
 Vagrant.configure(2) do |config|
-  config.vm.box = "cdkv2beta4"
+  config.vm.box = "cdkv2"
 
   config.vm.provider "libvirt" do |libvirt, override|
     libvirt.driver = "kvm"
-    libvirt.memory = 1024
+    libvirt.memory = 2048
     libvirt.cpus = 2
   end
 
