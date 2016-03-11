@@ -36,18 +36,26 @@
     - name: work around vagrant bug
       lineinfile: dest=/etc/hosts regexp='^127.0.0.1' line='127.0.0.1   f23 localhost localhost.localdomain localhost4 localhost4.localdomain4'
       
-    # Install packages
+    # Update packages
     - name: install yum-utils
       dnf: name=yum-utils state=installed
     - name: update all packages
       dnf: name=* state=latest
       run_once: true
 
-
+    # Install packages
     - name: install other packages
-      dnf: name=openssl,git,vim,docker,python-docker-py,atomic,bash-completion state=latest
+      dnf: name=openssl,git,vim,docker,python-docker-py,atomic,bash-completion state=installed
     - name: install kubernetes stuff
-      dnf: name=etcd,kubernetes state=latest enablerepo=updates-testing
+      dnf: name=etcd,kubernetes state=installed enablerepo=updates-testing
+
+    # Install packages for doing python tests
+    - name: install python test packages
+      dnf: name=python-flake8,python-tox,python-mock,python-pytest-cov state=installed
+
+    # Install packages for running atomicapp locally
+    - name: install python packages for running atomicapp locally
+      dnf: name=python-lockfile,python-anymarkup,python-jsonpointer state=installed
 
     # Configure and start docker
     - name: Add docker storage configuration

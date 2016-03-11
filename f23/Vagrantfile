@@ -7,14 +7,7 @@ Vagrant.configure(2) do |config|
 
     # https://libvirt.org/formatdomain.html#elementsFilesystems
     #config.vm.synced_folder "/guests/sharedfolder", "/sharedfolder", type: "9p", :accessmode => "mapped"
-
-
-    # SSHFS setup
-    config.sshfs.mount_on_guest = true
-    config.sshfs.paths= { "/guests/sharedfolder/" => "/sharedfolder/" }
-    config.sshfs.host_addr = '127.0.0.1'
-    config.sshfs.host_port = '10022'
-    config.sshfs.password_prompt = false
+    config.vm.synced_folder "/guests/sharedfolder", "/sharedfolder", type: "sshfs"
 
     config.vm.provider :libvirt do |domain|
       domain.memory = 4096
@@ -28,9 +21,6 @@ Vagrant.configure(2) do |config|
 
     host = 'f23'
     box  = 'fedora/23-cloud-base'
-
-    # Workaround python3 vagrant issue
-#config.vm.provision "shell", inline: "dnf install -y python libselinux-python python-dnf python-docker-py"
 
     config.vm.define host do | tmp |
         tmp.vm.hostname = host
