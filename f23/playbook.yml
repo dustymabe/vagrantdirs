@@ -44,8 +44,10 @@
       run_once: true
 
     # Install packages
+    - name: install docker
+      dnf: name=docker,python-docker-py state=installed #enablerepo=updates-testing
     - name: install other packages
-      dnf: name=openssl,git,vim,docker,python-docker-py,atomic,bash-completion state=installed
+      dnf: name=openssl,git,vim,atomic,bash-completion state=installed
     - name: install kubernetes stuff
       dnf: name=etcd,kubernetes state=installed enablerepo=updates-testing
 
