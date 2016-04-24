@@ -2,7 +2,7 @@
   remote_user: root # use root to log in to the machine
   vars:
     image: 'https://kojipkgs.fedoraproject.org//work/tasks/8052/11108052/Fedora-Cloud-Base-23-20150916.x86_64.qcow2'
-    isatomic: '' #'--atomic'
+    isatomic: '--atomic'
   tasks:
     
     # Work around vagrant bug: https://github.com/mitchellh/vagrant/issues/6202
@@ -68,6 +68,6 @@
     # Run tests 
     - name: Run tests
       shell: tunir --job /var/lib/tunirtests-master/fedora --stateless
-#     shell: tunir --job /var/lib/tunirtests-master/fedora --stateless {{ isatomic }} # Will work soon: --image-dir /var/lib/tunirimages
+  #   shell: tunir --job /var/lib/tunirtests-master/fedora --stateless {{ isatomic }} # Will work soon: --image-dir /var/lib/tunirimages
       register: tests_output
     - debug: var=tests_output.stdout_lines
