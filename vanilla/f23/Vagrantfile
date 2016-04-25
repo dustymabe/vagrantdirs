@@ -1,12 +1,12 @@
 Vagrant.configure(2) do |config|
 
-    config.ssh.username = 'root'
+#   config.ssh.username = 'root'
 #config.ssh.password = 'vagrant'
     config.ssh.insert_key = 'true'
-    config.ssh.forward_agent = 'true'
+#   config.ssh.forward_agent = 'true'
 
-    # https://libvirt.org/formatdomain.html#elementsFilesystems
-    config.vm.synced_folder "/guests/sharedfolder", "/sharedfolder", type: "9p", :accessmode => "mapped"
+    config.vm.synced_folder "/guests/sharedfolder", "/sharedfolder", type: "sshfs"
+
     config.vm.provider :libvirt do |domain|
       domain.memory = 4096
       domain.cpus = 4
@@ -23,11 +23,5 @@ Vagrant.configure(2) do |config|
     config.vm.define host do | tmp |
         tmp.vm.hostname = host
         tmp.vm.box = box
-
-#       # http://docs.vagrantup.com/v2/provisioning/ansible.html
-#       tmp.vm.provision "ansible" do |ansible|
-#           ansible.verbose = 'v'
-#           ansible.playbook = "playbook.yml"
-#       end
     end
 end
