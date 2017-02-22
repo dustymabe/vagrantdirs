@@ -2,6 +2,7 @@
 # vi: set ft=ruby :
 
 # The private network IP of the VM. You will use this IP to connect to OpenShift.
+# This variable is ignored for Hyper-V provider.
 PUBLIC_ADDRESS="10.1.2.2"
 
 # Number of virtualized CPUs
@@ -11,7 +12,7 @@ VM_CPU = ENV['VM_CPU'] || 2
 VM_MEMORY = ENV['VM_MEMORY'] || 3072
 
 # Validate required plugins
-REQUIRED_PLUGINS = %w(vagrant-service-manager vagrant-registration)
+REQUIRED_PLUGINS = %w(vagrant-service-manager vagrant-registration vagrant-sshfs)
 errors = []
 
 def message(name)
@@ -24,11 +25,14 @@ unless errors.empty?
   fail Vagrant::Errors::VagrantError.new, msg
 end
 
+
 Vagrant.configure(2) do |config|
-  config.vm.box = "cdkv2"
+  config.vm.box = 'cdkv2'
+  config.vm.box = 'cdkv2.2.0'
 
   # DWM: sshfs
   config.vm.synced_folder "/guests/sharedfolder", "/sharedfolder", type: "sshfs"
+  config.vm.synced_folder "./", "/cwd", type: "sshfs"
 
   config.vm.provider "virtualbox" do |v, override|
     v.memory = VM_MEMORY
@@ -41,33 +45,55 @@ Vagrant.configure(2) do |config|
     v.memory = VM_MEMORY
     v.cpus   = VM_CPU
     v.driver = "kvm"
+    v.suspend_mode = "managedsave"
   end
 
   config.vm.network "private_network", ip: "#{PUBLIC_ADDRESS}"
 
+  # vagrant-registration
   if ENV.has_key?('SUB_USERNAME') && ENV.has_key?('SUB_PASSWORD')
     config.registration.username = ENV['SUB_USERNAME']
     config.registration.password = ENV['SUB_PASSWORD']
   end
 
-  config.servicemanager.services = "docker"
+  # Proxy Information from environment
+  config.registration.proxy = PROXY = (ENV['PROXY'] || '')
+  config.registration.proxyUser = PROXY_USER = (ENV['PROXY_USER'] || '')
+  config.registration.proxyPassword = PROXY_PASSWORD = (ENV['PROXY_PASSWORD'] || '')
 
+  # vagrant-sshfs
+  config.vm.synced_folder '.', '/vagrant', disabled: true
+  if Vagrant::Util::Platform.windows?
+    target_path = ENV['USERPROFILE'].gsub(/\\/,'/').gsub(/[[:alpha:]]{1}:/){|s|'/' + s.downcase.sub(':', '')}
+    config.vm.synced_folder ENV['USERPROFILE'], target_path, type: 'sshfs', sshfs_opts_append: '-o umask=000 -o uid=1000 -o gid=1000'
+  else
+    config.vm.synced_folder ENV['HOME'], ENV['HOME'], type: 'sshfs', sshfs_opts_append: '-o umask=000 -o uid=1000 -o gid=1000'
+  end
   config.vm.provision "shell", inline: <<-SHELL
-    systemctl enable openshift 2>&1
-    systemctl start openshift
+    sudo setsebool -P virt_sandbox_use_fusefs 1
   SHELL
 
-  config.vm.provision "shell", inline: <<-SHELL
+  # prevent the automatic start of openshift via service-manager by just enabling Docker
+  config.servicemanager.services = "docker"
+
+  # explicitly enable and start OpenShift
+  config.vm.provision "shell", run: "always", inline: <<-SHELL
+    PROXY=#{PROXY} PROXY_USER=#{PROXY_USER} PROXY_PASSWORD=#{PROXY_PASSWORD} /usr/bin/sccli openshift
+  SHELL
+
+  config.vm.provision "shell", run: "always", inline: <<-SHELL
+    #Get the routable IP address of OpenShift
+    OSIP=`/opt/adb/openshift/get_ip_address`
     echo
     echo "Successfully started and provisioned VM with #{VM_CPU} cores and #{VM_MEMORY} MB of memory."
     echo "To modify the number of cores and/or available memory set the environment variables"
     echo "VM_CPU respectively VM_MEMORY."
     echo
-    echo "You can now access the OpenShift console on: https://#{PUBLIC_ADDRESS}:8443/console"
+    echo "You can now access the OpenShift console on: https://${OSIP}:8443/console"
     echo
     echo "To use OpenShift CLI, run:"
     echo "$ vagrant ssh"
-    echo "$ oc login #{PUBLIC_ADDRESS}:8443"
+    echo "$ oc login"
     echo
     echo "Configured users are (<username>/<password>):"
     echo "openshift-dev/devel"
