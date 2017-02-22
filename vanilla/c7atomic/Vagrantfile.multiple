@@ -1,0 +1,27 @@
+Vagrant.configure(2) do |config|
+
+    config.ssh.insert_key = 'true'
+
+    #config.vm.synced_folder "/guests/sharedfolder", "/sharedfolder", type: "rsync"
+    config.vm.provider :libvirt do |domain|
+      domain.memory = 4096
+      domain.cpus = 4
+      domain.nested = true
+      # Add an extra disk
+      domain.storage :file, :size => '20G'
+    end
+
+    host = 'vanilla-c7atomic1'
+    box  = 'centos/atomic-host'
+    config.vm.define host do | tmp |
+        tmp.vm.hostname = host
+        tmp.vm.box = box
+    end
+
+    host = 'vanilla-c7atomic2'
+    box  = 'centos/atomic-host'
+    config.vm.define host do | tmp2 |
+        tmp2.vm.hostname = host
+        tmp2.vm.box = box
+    end
+end

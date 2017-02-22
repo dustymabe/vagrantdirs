@@ -1,0 +1,35 @@
+Vagrant.configure(2) do |config|
+
+    config.ssh.insert_key = 'true'
+    config.ssh.forward_agent = 'true'
+
+    config.vm.synced_folder "/guests/sharedfolder", "/sharedfolder", type: "sshfs"
+
+    config.vm.provider :libvirt do |domain|
+      domain.memory = 4096
+      domain.memory = 6096
+      domain.cpus = 4
+      domain.nested = true
+      # Add an extra disk
+      domain.storage :file, :size => '20G'
+     #domain.volume_cache = 'none'
+    end
+
+    host = 'f26vanilla'
+    box  = 'fedora/25-cloud-base'
+
+    config.vm.define host do | tmp |
+        tmp.vm.hostname = host
+        tmp.vm.box = box
+    end
+
+    # Convert f25 system to f26
+    config.vm.provision "shell", inline: <<-SHELL
+      # grab the key for Fedora 26
+      rpm --import https://getfedora.org/static/64DAB85D.txt
+      dnf upgrade --refresh -y
+      dnf install dnf-plugin-system-upgrade -y
+      dnf system-upgrade download --refresh --releasever=rawhide -y
+      dnf system-upgrade reboot
+    SHELL
+end

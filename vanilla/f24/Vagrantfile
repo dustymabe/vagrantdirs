@@ -1,0 +1,28 @@
+Vagrant.configure(2) do |config|
+
+    config.ssh.insert_key = 'true'
+#   config.ssh.username = 'dusty'
+    config.ssh.forward_agent = 'true'
+
+#   config.vm.synced_folder "/guests/sharedfolder", "/sharedfolder", type: "sshfs"
+#   config.vm.synced_folder "/tmp/dir", "/home/dusty/", reverse: "true", type: "sshfs"
+  ##config.vm.synced_folder "./", "/var/log", type: "sshfs", reverse: true
+   #config.vm.synced_folder "/tmp/etc/", "/etc/", type: "sshfs", reverse: true
+
+    config.vm.provider :libvirt do |domain|
+      domain.memory = 4096
+      domain.cpus = 2
+      domain.nested = true
+      # Add an extra disk
+      domain.storage :file, :size => '20G'
+     #domain.volume_cache = 'none'
+    end
+
+    host = 'f24vanilla'
+    box  = 'fedora/24-cloud-base'
+
+    config.vm.define host do | tmp |
+        tmp.vm.hostname = host
+        tmp.vm.box = box
+    end
+end
