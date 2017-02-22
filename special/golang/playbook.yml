@@ -1,0 +1,62 @@
+- hosts: golang
+  gather_facts: false # F24 doesn't have python2 installed by default
+  remote_user: vagrant
+  become_user: root
+  become: yes
+  vars:
+    cacher_host: 192.168.121.135
+  tasks:
+    # Add python2 to the system for ansible
+    - name: install python and deps for ansible modules
+      raw: rpm -q python2 python2-dnf libselinux-python || dnf install -y python2 python2-dnf libselinux-python
+
+    # Now that python2 is installed gather facts for later use
+    - name: gather facts 
+      setup: 
+
+# For future when running ansible 2.1
+#   # Make sure the updates-testing repo is disabled
+#   - name: disable updates-testing repo
+#     yum_repository:
+#       name: updates-testing
+#       enabled: no
+
+    # Add some environment settings
+    - name: write .bashrc
+      template: src=/home/dustymabe/.bashrc dest=/home/vagrant/.bashrc
+    - name: write .vimrc
+      template: src=/home/dustymabe/.vimrc dest=/home/vagrant/.vimrc
+    - name: write .gitconfig
+      template: src=/home/dustymabe/.gitconfig dest=/home/vagrant/.gitconfig
+
+    # Install packages 
+    - name: install golang and friends
+      dnf: name={{ item }} state=installed
+      with_items:
+        - golang
+        - golang-godoc
+       #- glide
+        - godep
+        - gotags
+        - ctags
+        - vim
+        - git
+        - docker
+        - htop
+        - strace
+
+
+    # Work around vagrant bug: https://github.com/mitchellh/vagrant/issues/6202
+    - name: work around vagrant bug
+      lineinfile: dest=/etc/hosts regexp='^127.0.0.1' line='127.0.0.1   f24 localhost localhost.localdomain localhost4 localhost4.localdomain4'
+
+ #  # Configure and start docker
+ #  - name: Add docker storage configuration
+ #    lineinfile: dest=/etc/sysconfig/docker-storage-setup regexp=^DEVS= line=DEVS=/dev/vdb
+ #  - name: Add more docker storage configuration
+ #    lineinfile: dest=/etc/sysconfig/docker-storage-setup regexp=^VG= line=VG=vgdocker
+##  - name: Configure docker to use local registry
+##    lineinfile: dest=/etc/sysconfig/docker regexp=^OPTIONS= line=OPTIONS='--selinux-enabled --registry-mirror=http://{{ cacher_host }}:5000'
+ #  - name: ensure docker is running (and enable it at boot)
+ #    service: name=docker state=started enabled=yes
+

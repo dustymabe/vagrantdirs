@@ -1,0 +1,48 @@
+# cloud base image:
+# imagefactory --debug base_image --file-parameter install_script fedora-cloud-base.ks --parameter offline_icicle true ./fedora-rawhide.tdl
+# qemu-img convert -O qcow2 /var/lib/imagefactory/storage/9637af5b-4174-49f5-aab1-2bda7897a1d6.body image.qcow2
+# 
+# create a docker image:
+# imagefactory --debug target_image docker --file-parameter install_script fedora-docker-min.ks --parameter offline_icicle true --template ./fedora-rawhide.tdl
+#
+Vagrant.configure(2) do |config|
+
+    config.ssh.insert_key = 'true'
+    config.vm.synced_folder "/guests/sharedfolder", "/sharedfolder", type: "sshfs"
+
+    config.vm.provider :libvirt do |domain|
+      domain.memory = 4096
+      domain.cpus = 2
+    end
+
+    host = 'imagefactory'
+    box  = 'fedora/25-cloud-base'
+
+    config.vm.define host do | tmp |
+        tmp.vm.hostname = host
+        tmp.vm.box = box
+
+#       # http://docs.vagrantup.com/v2/provisioning/ansible.html
+#       tmp.vm.provision "ansible" do |ansible|
+#           ansible.verbose = 'v'
+#           ansible.playbook = "playbook.yml"
+#       end
+    end
+
+    # Install tools for rpm-ostree
+    config.vm.provision "shell", inline: <<-SHELL
+      dnf install -y imagefactory imagefactory-plugins-* libvirt-client
+      dnf install -y git
+      cp /etc/oz/oz.cfg ~/oz.cfg
+      rpm -e --nodeps oz
+      cp ~/oz.cfg /etc/oz/oz.cfg
+      sed -i.orig 's/\# memory = 1024/memory = 2048/' /etc/oz/oz.cfg
+      git clone -b dusty-try-to-log-serial https://github.com/dustymabe/oz
+      cd oz
+      python setup.py install
+      sed -i.orig 's/install_script_name)/install_script_name, logserial=True)/' /usr/lib/python2.7/site-packages/imagefactory_plugins/TinMan/TinMan.py
+#systemctl enable libvirtd --now # the --now should work but doesn't for some reason
+#systemctl enable virtlogd --now
+    SHELL
+
+end

@@ -1,0 +1,156 @@
+- hosts: f24
+  gather_facts: false # F24 doesn't have python2 installed by default
+  remote_user: vagrant
+  become_user: root
+  become: yes
+  vars:
+    cacher_host: 192.168.121.135
+    user_home: '/home/vagrant/'
+  tasks:
+    # Add python2 to the system for ansible
+    - name: install python and deps for ansible modules
+      raw: rpm -q python2 python2-dnf libselinux-python || dnf install -y python2 python2-dnf libselinux-python
+
+    # Now that python2 is installed gather facts for later use
+    - name: gather facts 
+      setup: 
+
+    # Add some environment settings
+    - name: write .bashrc
+      template: src=/home/dustymabe/.bashrc dest={{ user_home }}/.bashrc
+    - name: write .vimrc
+      template: src=/home/dustymabe/.vimrc dest={{ user_home }}/.vimrc
+    - name: write .gitconfig
+      template: src=/home/dustymabe/.gitconfig dest={{ user_home }}/.gitconfig
+
+#   # Make sure the updates-testing repo is disabled
+#   - name: delete updates-testing repo
+#     file: path=/etc/yum.repos.d/fedora-updates-testing.repo state=absent
+    
+
+#   # For future when running ansible 2.1
+#   # Make sure the updates-testing repo is disabled
+#   - name: disable updates-testing repo
+#     yum_repository:
+#       name: updates-testing
+#       enabled: no
+#       baseurl: 
+
+#   # Add some environment settings
+#   - name: write .bashrc
+#     template: src=/home/dustymabe/.bashrc dest=/home/vagrant/.bashrc
+#   - name: write .vimrc
+#     template: src=/home/dustymabe/.vimrc dest=/home/vagrant/.vimrc
+#   - name: write .gitconfig
+#     template: src=/home/dustymabe/.gitconfig dest=/home/vagrant/.gitconfig
+
+#   - name: configure dnf to look at proxy
+#     lineinfile: dest=/etc/dnf/dnf.conf regexp=^proxy line=proxy=http://{{ cacher_host }}:3128
+#   - name: configure fedora yum repos to use baseurl
+#     lineinfile: dest=/etc/yum.repos.d/fedora.repo regexp='^#?baseurl=(.*)os/' line='baseurl=http://mirror.us.leaseweb.net/fedora/linux/releases/22/Everything/x86_64/os/'
+#   - name: delete metalink
+#     lineinfile: dest=/etc/yum.repos.d/fedora.repo regexp='^metalink=(.*)fedora-\$releasever' state=absent #   - name: configure fedora updates yum repos to use baseurl
+#     lineinfile: dest=/etc/yum.repos.d/fedora-updates.repo regexp='^#?baseurl=(.*)\$releasever/\$basearch/$' line='baseurl=http://mirror.redsox.cc/pub/fedora/linux/updates/$releasever/$basearch/'
+#   - name: delete metalink
+#     lineinfile: dest=/etc/yum.repos.d/fedora-updates.repo regexp='^metalink=(.*)repo=updates-released-f' state=absent
+    
+    # Work around vagrant bug: https://github.com/mitchellh/vagrant/issues/6202
+    - name: work around vagrant bug
+      lineinfile: dest=/etc/hosts regexp='^127.0.0.1' line='127.0.0.1   f24 localhost localhost.localdomain localhost4 localhost4.localdomain4'
+      
+    # Update packages
+    - name: install yum-utils
+      dnf: name=yum-utils state=installed
+    - name: update all packages
+      dnf: name=* state=latest
+      run_once: true
+
+    # Install packages
+    - name: install docker
+      dnf: name=docker,python-docker-py state=installed #enablerepo=updates-testing
+    - name: install other packages
+      dnf: name=openssl,git,vim,atomic,bash-completion state=installed
+    - name: install kubernetes stuff
+      dnf: name=etcd,kubernetes state=installed enablerepo=updates-testing
+
+    # Install packages for doing python tests
+    - name: install python test packages
+      dnf: name=python-flake8,python-tox,python-mock,python-pytest-cov state=installed
+
+    # Install packages for running atomicapp locally
+    - name: install python packages for running atomicapp locally
+      dnf: name=python-lockfile,python-anymarkup,python-jsonpointer state=installed
+
+    # Configure and start docker
+    - name: Add docker storage configuration
+      lineinfile: dest=/etc/sysconfig/docker-storage-setup regexp=^DEVS= line=DEVS=/dev/vdb
+    - name: Add more docker storage configuration
+      lineinfile: dest=/etc/sysconfig/docker-storage-setup regexp=^VG= line=VG=vgdocker
+#   - name: Configure docker to use local registry
+#     lineinfile: dest=/etc/sysconfig/docker regexp=^OPTIONS= line=OPTIONS='--selinux-enabled --registry-mirror=http://{{ cacher_host }}:5000'
+    - name: ensure docker is running (and enable it at boot)
+      service: name=docker state=started enabled=yes
+
+    # Add kubernetes configuration
+    - name: kubernetes- set apiserver to listen on 0.0.0.0
+      lineinfile: dest=/etc/kubernetes/apiserver regexp=^KUBE_API_ADDRESS= line=KUBE_API_ADDRESS="--address=0.0.0.0"
+    - name: kubernetes- generate key to use
+      shell: mkdir -p /etc/pki/kube-apiserver && /bin/openssl genrsa -out /etc/pki/kube-apiserver/serviceaccount.key 2048
+      args:
+        creates: /etc/pki/kube-apiserver/serviceaccount.key # Makes it so script won't run twice
+    - name: kubernetes- set api server to use the key
+      lineinfile: dest=/etc/kubernetes/apiserver regexp=^KUBE_API_ARGS= line=KUBE_API_ARGS="--service_account_key_file=/etc/pki/kube-apiserver/serviceaccount.key"
+    - name: kubernetes- set controller manager to use the key
+      lineinfile: dest=/etc/kubernetes/controller-manager regexp=^KUBE_CONTROLLER_MANAGER_ARGS= line=KUBE_CONTROLLER_MANAGER_ARGS="--service_account_private_key_file=/etc/pki/kube-apiserver/serviceaccount.key"
+
+    # Start kubernetes services
+    - name: start kubernetes services
+      service: name={{item}} state=started enabled=yes
+      with_items:
+        - etcd
+        - kube-apiserver
+        - kube-controller-manager
+        - kubelet
+        - kube-proxy
+        - kube-scheduler
+
+    # Start kube2sky glue
+    - name: start kube2sky
+      docker:
+        name:  kube2sky
+        net:   host 
+        image: gcr.io/google_containers/kube2sky:1.11
+        # Add docker_api_version while using ansible 1.9.2
+        # See https://github.com/ansible/ansible-modules-core/issues/1707
+        # See https://github.com/ansible/ansible-modules-core/issues/1794
+        docker_api_version: 1.18 # Not sure why this is needed
+        state: started
+        restart_policy: always
+        command: -v=10 -logtostderr=true -domain=kubernetes.local -etcd-server="http://127.0.0.1:2379"
+
+    # Start skydns (container option)
+    - name: start skydns
+      docker:
+        name:  skydns
+        net:   host 
+        image: gcr.io/google_containers/skydns:2015-03-11-001
+        # Add docker_api_version while using ansible 1.9.2
+        # See https://github.com/ansible/ansible-modules-core/issues/1707
+        # See https://github.com/ansible/ansible-modules-core/issues/1794
+        docker_api_version: 1.18 # Not sure why this is needed
+        state: started
+        restart_policy: always
+        env:
+            ETCD_MACHINES:      "http://127.0.0.1:2379"
+            SKYDNS_DOMAIN:      "kubernetes.local"
+            SKYDNS_ADDR:        "0.0.0.0:53"
+            SKYDNS_NAMESERVERS: "8.8.8.8:53,8.8.4.4:53"
+
+    # configure kubelet
+    - name: configure kubelet for skydns
+      lineinfile: dest=/etc/kubernetes/kubelet regexp=^#?KUBELET_ARGS= line=KUBELET_ARGS="--cluster_dns={{ ansible_eth0.ipv4.address }} --cluster_domain=kubernetes.local"
+      notify: restart kubelet
+
+  handlers:
+    - name: restart kubelet
+      service: name=kubelet state=restarted
