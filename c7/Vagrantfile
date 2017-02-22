@@ -16,14 +16,6 @@ Vagrant.configure(2) do |config|
     # vagrant ssh-config | ssh -F /dev/stdin vagrant@c7 sudo mkdir /sharedfolder
     #
 
-    config.sshfs.mount_on_guest = true
-    config.sshfs.paths= { "/guests/sharedfolder/" => "/sharedfolder/" }
-    config.sshfs.host_addr = '192.168.121.1'
-    config.sshfs.host_addr = '127.0.0.1'
-    config.sshfs.host_port = '10022'
-    config.sshfs.password_prompt = false
-    
-
     config.vm.provider :libvirt do |domain|
       domain.memory = 3000
       domain.cpus = 2
