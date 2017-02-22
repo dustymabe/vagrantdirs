@@ -1,0 +1,11 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+  config.vm.provider :aws do |provider|
+    provider.ami = "ami-518bfb3b"
+  end
+  config.vm.provider :digital_ocean do |provider|
+    provider.image = "Fedora 23 x64"
+  end
+end

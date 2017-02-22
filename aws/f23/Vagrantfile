@@ -1,0 +1,41 @@
+Vagrant.configure(2) do |config|
+
+    config.ssh.insert_key = 'true'
+
+    # https://libvirt.org/formatdomain.html#elementsFilesystems
+    #config.vm.synced_folder "/guests/sharedfolder", "/sharedfolder", type: "9p", :accessmode => "mapped"
+    config.vm.synced_folder ".", "/vagrant", disabled: true, type: "rsync"
+    config.vm.synced_folder ".", "/vagrant", type: "sshfs"
+
+
+
+  config.vm.provider :aws do |aws, override|
+    aws.access_key_id = ENV["AWS_ACCESS_KEY"]
+    aws.secret_access_key = ENV["AWS_SECRET_KEY"]
+#aws.session_token = "SESSION TOKEN"
+    aws.keypair_name = "dustymabe-keypair"
+    aws.ami = "ami-518bfb3b"
+    aws.region = "us-east-1"
+    aws.instance_type = 'm3.medium'
+
+
+    override.ssh.username = "fedora"
+#   override.ssh.plain_mode = true
+    override.ssh.private_key_path = '/home/dustymabe/Desktop/Dropbox/CLOUD/EC2/fedora-ec2-dustymabe-keypair.pem'
+  end
+
+    host = 'f23-aws'
+    box  = 'fedora23-aws'
+
+    config.vm.define host do | tmp |
+        tmp.vm.hostname = host
+        tmp.vm.box = box
+
+        # http://docs.vagrantup.com/v2/provisioning/ansible.html
+        tmp.vm.provision "ansible" do |ansible|
+            ansible.verbose = 'v'
+            ansible.playbook = "playbook.yml"
+        end
+    end
+
+end
