@@ -22,9 +22,9 @@ Vagrant.configure(2) do |config|
 #       end
     end
 
-#   # Install tools for rpm-ostree
-#   config.vm.provision "shell", inline: <<-SHELL
-#     dnf install -y rpm-ostree
-#   SHELL
+    # Install tools for rpm-ostree
+    config.vm.provision "shell", inline: <<-SHELL
+      dnf install -y rpm-ostree ostree
+    SHELL
 
 end

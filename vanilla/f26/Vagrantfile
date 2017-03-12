@@ -16,20 +16,11 @@ Vagrant.configure(2) do |config|
     end
 
     host = 'f26vanilla'
-    box  = 'fedora/25-cloud-base'
+    box  = 'fedora/26-cloud-base'
+    box  = 'f26-20170311'
 
     config.vm.define host do | tmp |
         tmp.vm.hostname = host
         tmp.vm.box = box
     end
-
-    # Convert f25 system to f26
-    config.vm.provision "shell", inline: <<-SHELL
-      # grab the key for Fedora 26
-      rpm --import https://getfedora.org/static/64DAB85D.txt
-      dnf upgrade --refresh -y
-      dnf install dnf-plugin-system-upgrade -y
-      dnf system-upgrade download --refresh --releasever=rawhide -y
-      dnf system-upgrade reboot
-    SHELL
 end
