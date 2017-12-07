@@ -1,0 +1,68 @@
+# log here: https://kojipkgs.fedoraproject.org/compose/rawhide/latest-Fedora-Rawhide/logs/x86_64/ostree_installer/runroot.log
+#
+# lorax --cachedir /sharedfolder/cache/lorax/ --product=Fedora --version=26 --release=20170314.n.0 --source=https://kojipkgs.fedoraproject.org/compose/branched/Fedora-26-20170314.n.0/compose/Everything/x86_64/os/ --add-template=$(pwd)/atomic-installer/lorax-configure-repo.tmpl --add-template=$(pwd)/atomic-installer/lorax-embed-repo.tmpl --add-template-var=ostree_osname=fedora-atomic --add-template-var=ostree_ref=fedora-atomic/25/x86_64/docker-host  --add-template-var=ostree_repo='http://192.168.121.175:8000/repo/' --installpkgs=fedora-productimg-atomic --force --nomacboot --volid Fedora-Atomic --rootfs-size=3 ~/lorax2/
+#
+# lorax --cachedir /sharedfolder/cache/lorax/ --product=Fedora --version=26 --release=20190101.dusty.n.0 --source=http://kojipkgs.fedoraproject.org/compose/rawhide/Fedora-Rawhide-20170529.n.0/compose/Everything/x86_64/os --variant=Atomic --nomacboot --volid=Fedora-AH-ostree-x86_64-rawh --installpkgs=fedora-productimg-atomic --add-template=$(pwd)/atomic-installer/lorax-embed-repo.tmpl --add-template=$(pwd)/atomic-installer/lorax-configure-repo.tmpl --add-template-var=ostree_install_repo=http://192.168.121.85:8000/ --add-template-var=ostree_update_repo=https://kojipkgs.fedoraproject.org/atomic/rawhide/ --add-template-var=ostree_osname=fedora-atomic --add-template-var=ostree_install_ref=fedora/rawhide/x86_64/atomic-host --add-template-var=ostree_update_ref=fedora/rawhide/x86_64/atomic-host --logfile=~/logfile.txt --rootfs-size=3 /root/lorax/
+#
+# lorax --cachedir /sharedfolder/cache/lorax/ --product=Fedora --version=26 --release=26 --source= --add-template=$(pwd)/ostree-based-installer/lorax-configure-repo.tmpl --add-template=$(pwd)/ostree-based-installer/lorax-embed-repo.tmpl --add-template-var=ostree_osname=fedora-atomic --add-template-var=ostree_ref=fedora/26/x86_64/atomic-host --add-template-var=ostree_install_repo=https://kojipkgs.fedoraproject.org/atomic/26/ --add-template-var=ostree_update_repo=https://kojipkgs.fedoraproject.org/atomic/26/ --add-template-var=ostree_osname=fedora-atomic --add-template-var=ostree_install_ref=fedora/rawhide/x86_64/atomic-host --add-template-var=ostree_update_ref=fedora/rawhide/x86_64/atomic-host --logfile=~/logfile.txt --rootfs-size=3 /root/lorax/lorax --cachedir /sharedfolder/cache/lorax/ --product=Fedora --version=26 --release=26 --source=file:///sharedfolder/foo2/ --source=http://download.fedoraproject.org/pub/fedora/linux/releases/26/Everything/x86_64/os/ --source= --add-template=$(pwd)/ostree-based-installer/lorax-configure-repo.tmpl --add-template=$(pwd)/ostree-based-installer/lorax-embed-repo.tmpl --add-template-var=ostree_osname=fedora-atomic --add-template-var=ostree_update_ref=fedora/26/x86_64/atomic-host --add-template-var=ostree_install_ref=fedora/26/x86_64/updates-testing/atomic-host --add-template-var=ostree_install_repo=https://kojipkgs.fedoraproject.org/atomic/26/ --add-template-var=ostree_update_repo=https://kojipkgs.fedoraproject.org/atomic/26/ --add-template-var=ostree_osname=fedora-atomic --logfile=~/logfile.txt --rootfs-size=3 /root/lorax/
+#
+# sudo lorax --cachedir /sharedfolder/cache/lorax/ --product=Fedora
+# --version=26 --release=26 --buildarch x86_64 --nomacboot
+# --source=file:///sharedfolder/foo2/
+# --source=http://download.fedoraproject.org/pub/fedora/linux/releases/26/Everything/x86_64/os/
+# --add-template=$(pwd)/ostree-based-installer/lorax-configure-repo.tmpl
+# --add-template=$(pwd)/ostree-based-installer/lorax-embed-repo.tmpl
+# --add-template-var=ostree_osname=fedora-atomic
+# --add-template-var=ostree_update_ref=fedora/26/x86_64/atomic-host
+# --add-template-var=ostree_install_ref=fedora/26/x86_64/testing/atomic-host
+# --add-template-var=ostree_install_repo=https://kojipkgs.fedoraproject.org/atomic/26/
+# --add-template-var=ostree_update_repo=https://kojipkgs.fedoraproject.org/atomic/26/
+# --add-template-var=ostree_osname=fedora-atomic
+# --installpkgs=fedora-productimg-atomic --logfile=~/logfile.txt
+# --rootfs-size=3 /root/lorax/
+#
+# Testing anaconda:
+#    adamw | otherwise, build your own media                                                                                                            
+#    adamw | which basically means:                                                                                                                     
+#    adamw | 1. dnf install lorax                                                                                                                       
+#    adamw | 2. create an empty scratch directory                                                                                                       
+#    adamw | 3. sudo                                                                                                                                    
+#    adamw | er, 3. sudo su                                                                                                                             
+#    adamw | 4. setenforce Permissive                                                                                                                   
+#      <-- | dmaiocchi (dmaiocchi@nat/novell/x-gbinsqgkqnhvkmfr) has quit (Quit: Leaving)                                                               
+#    adamw | ah, crap, missed a step                                                                                                                    
+#    adamw | step 0., set up a repository somewhere with the packages in it                                                                             
+#dustymabe | k                                                                                                                                          
+#    adamw | 5. lorax -p Fedora -v 26 -r 26 --cachedir ./cache -s https://kojipkgs.fedoraproject.org/compose/branched/Fedora-26-20170515.n.0/compose/Everything/x86_64/os/ -s file:///home/vagrant/repo/ --nomacboot ./results/
+#dustymabe | i have a lorax vagrant box laying around here somewhere :)                                                                                 
+#dustymabe | i think I should be able to do this                                                                                                        
+#    adamw | let that run, and in results/images you'll have a boot.iso which is an Everything netinst built with the packages from                     
+#          | Fedora-26-20170510.n.0 plus anything in the side repo                                                                                      
+#    adamw | obviously you can adjust the numbers and the base compose as appropriate.                                                                  
+#    adamw | for Rawhide it's `-v Rawhide -r Rawhide` .
+#
+Vagrant.configure(2) do |config|
+
+    config.ssh.insert_key = 'true'
+    config.vm.synced_folder "/guests/sharedfolder", "/sharedfolder", type: "sshfs"
+
+    config.vm.provider :libvirt do |domain|
+      domain.memory = 4096
+      domain.cpus = 2
+    end
+
+    host = 'lorax'
+    box  = 'fedora/27-cloud-base'
+
+    config.vm.define host do | tmp |
+        tmp.vm.hostname = host
+        tmp.vm.box = box
+    end
+
+    # Install tools for rpm-ostree
+    config.vm.provision "shell", inline: <<-SHELL
+      dnf install -y lorax ostree #--enablerepo=updates-testing
+      setenforce 0 # lorax asks us to do this
+    SHELL
+
+end

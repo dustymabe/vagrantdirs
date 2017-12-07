@@ -1,0 +1,15 @@
+Vagrant.configure(2) do |config|
+
+    config.ssh.insert_key = 'true'
+    config.ssh.forward_agent = 'true'
+
+#   config.vm.synced_folder "/guests/sharedfolder", "/sharedfolder", type: "sshfs"
+
+    host = 'fbsd103vanilla'
+    box  = 'freebsd/FreeBSD-10.3-STABLE-2'
+
+    config.vm.define host do | tmp |
+        tmp.vm.hostname = host
+        tmp.vm.box = box
+    end
+end
