@@ -17,7 +17,6 @@ Vagrant.configure(2) do |config|
 
     host = 'f26vanilla'
     box  = 'fedora/26-cloud-base'
-    box  = 'f26-20170311'
 
     config.vm.define host do | tmp |
         tmp.vm.hostname = host
