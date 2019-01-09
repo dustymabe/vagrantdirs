@@ -1,0 +1,37 @@
+Vagrant.configure(2) do |config|
+
+    config.ssh.insert_key = 'true'
+#   config.ssh.forward_agent = 'true'
+#
+
+#   config.vm.synced_folder "/guests/sharedfolder", "/var/sharedfolder", type: "sshfs"
+
+    config.vm.provider :libvirt do |domain|
+      domain.memory = 4096
+      domain.cpus = 4
+      domain.nested = true
+      # Add an extra disk
+      domain.storage :file, :size => '20G'
+     #domain.volume_cache = 'none'
+    end
+
+    host = 'vanilla-f29-atomic-testing'
+
+    # Grab latest successful compose ID
+    require 'open-uri'
+    uri = URI.parse("https://kojipkgs.fedoraproject.org/compose/updates/f29-updates-testing/COMPOSE_ID")
+    id = uri.read
+    # Grab the date type respin string from that
+    datetyperespin = /(\d{8}\.\d)/.match(id)[0]
+
+    # Derive the box url from those two
+    box_url = "https://kojipkgs.fedoraproject.org/compose/updates/#{id}/compose/AtomicHost/x86_64/images/Fedora-AtomicHost-Vagrant-29_Update-#{datetyperespin}.x86_64.vagrant-libvirt.box"
+    #box_url = "https://kojipkgs.fedoraproject.org/compose/branched/#{id}/compose/AtomicHost/x86_64/images/Fedora-AtomicHost-Vagrant-28-#{datetyperespin}.x86_64.vagrant-libvirt.box"
+    box  = "29-atomic-host-testing-#{datetyperespin}"
+    config.vm.define host do | tmp |
+        tmp.vm.hostname = host
+        tmp.vm.box = box
+        tmp.vm.box_url = box_url
+#       tmp.vm.box_version = version
+    end
+end
