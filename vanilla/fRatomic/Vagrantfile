@@ -4,7 +4,7 @@ Vagrant.configure(2) do |config|
 #   config.ssh.forward_agent = 'true'
 #
 
-#   config.vm.synced_folder "/guests/sharedfolder", "/sharedfolder", type: "sshfs"
+#   config.vm.synced_folder "/guests/sharedfolder", "/var/sharedfolder", type: "sshfs"
 
     config.vm.provider :libvirt do |domain|
       domain.memory = 4096
@@ -27,7 +27,7 @@ Vagrant.configure(2) do |config|
 
     # Derive the box url from those two
     box_url = "https://kojipkgs.fedoraproject.org/compose/rawhide/#{id}/compose/AtomicHost/x86_64/images/Fedora-AtomicHost-Vagrant-Rawhide-#{datetyperespin}.x86_64.vagrant-libvirt.box"
-    box  = 'rawhide-atomic-host-#{datetyperespin}"
+    box  = "rawhide-atomic-host-#{datetyperespin}"
 
     config.vm.define host do | tmp |
         tmp.vm.hostname = host
