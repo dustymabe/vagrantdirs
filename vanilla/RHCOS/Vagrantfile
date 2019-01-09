@@ -1,0 +1,22 @@
+Vagrant.configure(2) do |config|
+
+    config.ssh.insert_key = 'true'
+#   config.vm.synced_folder "/guests/sharedfolder", "/vagrant", type: "nfs", disabled: true
+#   config.vm.synced_folder "/guests/sharedfolder", "/sharedfolder", type: "sshfs"
+
+    config.vm.provider :libvirt do |domain|
+      domain.memory = 2048
+      domain.cpus = 2
+    end
+
+    host = 'rhcos'
+
+    box  = 'redhat/coreos'
+    box_url = "http://aos-ostree.rhev-ci-vms.eng.rdu2.redhat.com/rhcos/images/cloud/latest/rhcos-vagrant-libvirt.box"
+
+    config.vm.define host do | tmp |
+        tmp.vm.hostname = host
+        tmp.vm.box = box
+        tmp.vm.box_url = box_url
+    end
+end
