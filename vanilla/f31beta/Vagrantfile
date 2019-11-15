@@ -15,12 +15,17 @@ Vagrant.configure(2) do |config|
      #domain.volume_cache = 'none'
     end
 
-    host = 'vanilla-f31'
-    box  = 'fedora/31-cloud-base'
+    host = 'vanilla-f31-beta'
+    box  = 'fedora/31-beta-cloud-base'
 
+#   # Derive the box url from those two
+#   box_url = "https://kojipkgs.fedoraproject.org/compose/31/Fedora-31-20190911.0/compose/Cloud/x86_64/images/Fedora-Cloud-Base-Vagrant-31_Beta-1.1.x86_64.vagrant-libvirt.box"
+#   box  = "31-beta-cloud-base"
 
     config.vm.define host do | tmp |
         tmp.vm.hostname = host
         tmp.vm.box = box
+#       tmp.vm.box_url = box_url
+#       tmp.vm.box_version = version
     end
 end
