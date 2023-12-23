@@ -1,0 +1,44 @@
+Vagrant.configure(2) do |config|
+
+    config.ssh.insert_key = 'true'
+#   config.ssh.forward_agent = 'true'
+#
+
+    config.vm.synced_folder "/var/b/shared/", "/var/b/shared/", type: "sshfs"
+
+    config.vm.provider :libvirt do |domain|
+      domain.memory = 4096
+      domain.cpus = 4
+      domain.nested = true
+      # Add an extra disk
+#     domain.storage :file, :size => '20G'
+     #domain.volume_cache = 'none'
+    end
+
+    host = 'vanilla-fnext'
+    box  = 'fedora/fnext-cloud-base'
+
+   # Grab latest successful compose ID
+    require 'open-uri'
+
+    number="36"
+#   baseuri = "https://kojipkgs.fedoraproject.org/compose/#{number}"
+    baseuri = "https://kojipkgs.fedoraproject.org/compose/branched"
+#   uri = URI.parse(baseuri + "https://kojipkgs.fedoraproject.org/compose/#{number}/latest-Fedora-#{number}/COMPOSE_ID")
+    uri = URI.parse(baseuri + "/latest-Fedora-#{number}/COMPOSE_ID")
+    id = uri.read
+    # Grab the date type respin string from that
+    datetyperespin = /(\d{8}(\.n)?\.\d)/.match(id)[0]
+
+    # Derive the box url from those two
+    box_url = baseuri + "/#{id}/compose/Cloud/x86_64/images/Fedora-Cloud-Base-Vagrant-#{number}-#{datetyperespin}.x86_64.vagrant-libvirt.box"
+#   box_url = "https://kojipkgs.fedoraproject.org/compose/35/latest-Fedora-35/compose/Cloud/x86_64/images/Fedora-Cloud-Base-Vagrant-35-1.1.x86_64.vagrant-libvirt.box"
+    box  = "fnext-cloud-base-#{datetyperespin}"
+
+    config.vm.define host do | tmp |
+        tmp.vm.hostname = host
+        tmp.vm.box = box
+        tmp.vm.box_url = box_url
+#       tmp.vm.box_version = version
+    end
+end
